@@ -1,5 +1,5 @@
 ---
-title: "demo"
+title: "Sampling Distribution"
 author: "Jiao YU"
 date: "10/21/2024"
 output: html_document
