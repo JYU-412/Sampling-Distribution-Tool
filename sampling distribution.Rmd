@@ -1,0 +1,130 @@
+---
+title: "demo"
+author: "Jiao YU"
+date: "10/21/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load required libraries
+library(shiny)
+library(ggplot2)
+
+# Define UI for the app
+ui <- fluidPage(
+  
+  # Application title
+  titlePanel("Sampling Distribution Demonstration"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("dataInput", 
+                   "Enter a data point:", 
+                   value = 8),   # Default value for the input
+      
+      actionButton("addData", "Add Data Point"),
+      
+      actionButton("resetData", "Reset Data"),
+      
+      br(),
+      verbatimTextOutput("dataList"),  # Show the list of input data
+      
+      br(),
+      sliderInput("num_samples",
+                  "Number of Samples (resample from selected data points):",
+                  min = 1,
+                  max = 1000,
+                  value = 10),
+      
+      numericInput("sampleSize",
+                   "Sample Size for Each Resampling:",
+                   value = 4,    # Default sample size
+                   min = 2,      # Minimum sample size
+                   max = 20)     # Maximum sample size (adjust according to your dataset size)
+    ),
+    
+    # Show the plot and summary
+    mainPanel(
+      plotOutput("distPlot"),
+      verbatimTextOutput("summary")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output, session) {
+  
+  # Reactive value to store the data points
+  data <- reactiveVal(c())
+  
+  # Add the new data point to the dataset when the button is pressed
+  observeEvent(input$addData, {
+    new_data <- c(data(), input$dataInput)
+    data(new_data)
+  })
+  
+  # Reset the data points when the reset button is pressed
+  observeEvent(input$resetData, {
+    data(c())
+  })
+  
+  # Show the list of input data
+  output$dataList <- renderText({
+    paste("Current Data Points: ", toString(data()))
+  })
+  
+  # Plot the sampling distribution (resampling based on user-selected sample size)
+  output$distPlot <- renderPlot({
+    # Ensure there are enough data points to sample
+    if (length(data()) < input$sampleSize) {
+      return(NULL)
+    }
+    
+    # Create sample means by drawing random samples of the chosen size from the input data
+    sample_means <- replicate(input$num_samples, mean(sample(data(), input$sampleSize, replace = TRUE)))
+    
+    # Calculate the mean of the sample means (normal curve mean)
+    mean_sample_means <- mean(sample_means)
+    
+    # Generate the plot
+    ggplot(data.frame(sample_means = sample_means), aes(x = sample_means)) +
+      geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue", color = "black") +
+      geom_density(color = "red", size = 1.5) +
+      geom_vline(aes(xintercept = mean_sample_means), color = "blue", linetype = "dashed", size = 1) + # Add vertical line for mean
+      labs(title = paste("Sampling Distribution of the Sample Mean (n =", input$sampleSize, ")"),
+           x = "Sample Means",
+           y = "Density") +
+      theme_minimal()
+  })
+  
+  # Output the summary statistics
+  output$summary <- renderPrint({
+    if (length(data()) < input$sampleSize) {
+      return(paste("Please input at least", input$sampleSize, "data points to start resampling."))
+    }
+    
+    # Calculate mean and standard deviation of entered data
+    entered_mean <- mean(data(), na.rm = TRUE)
+    entered_sd <- sd(data(), na.rm = TRUE)
+    
+    # Calculate mean of the sample means
+    sample_means <- replicate(input$num_samples, mean(sample(data(), input$sampleSize, replace = TRUE)))
+    mean_sample_means <- mean(sample_means)
+    
+    # Display summary statistics
+    cat("Mean of the entered data: ", round(entered_mean, 2), "\n")
+    cat("Standard deviation of the entered data: ", round(entered_sd, 2), "\n")
+    cat("Mean of the sampling distribution (normal curve): ", round(mean_sample_means, 2), "\n")
+  })
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
+
+
+```
+
